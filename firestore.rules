@@ -1,0 +1,21 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Products remain public
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.role == "admin";
+    }
+
+    // User & Sub-collection rules (Pets, Medical Records)
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Allows access to "pets", "medical_records", etc. ONLY for this user
+      match /{allSubcollections=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+  }
+}
