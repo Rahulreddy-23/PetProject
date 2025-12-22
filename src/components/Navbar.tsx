@@ -30,7 +30,7 @@ export default function Navbar() {
                     <div className="flex items-center gap-8">
                         <Link
                             href="/store"
-                            className={`flex items-center gap-2 font-medium transition-colors ${isActive('/store') ? 'text-[#FF9F1C]' : 'text-gray-500 hover:text-[#A2D2FF]'
+                            className={`flex items-center gap-2 font-medium transition-colors h-full px-2 ${isActive('/store') ? 'text-[#FF9F1C] border-b-2 border-[#A2D2FF]' : 'text-gray-500 hover:text-[#A2D2FF]'
                                 }`}
                         >
                             <ShoppingBag className="w-5 h-5" />
@@ -39,7 +39,7 @@ export default function Navbar() {
 
                         <Link
                             href="/health"
-                            className={`flex items-center gap-2 font-medium transition-colors ${isActive('/health') ? 'text-[#FF9F1C]' : 'text-gray-500 hover:text-[#A2D2FF]'
+                            className={`flex items-center gap-2 font-medium transition-colors h-full px-2 ${isActive('/health') ? 'text-[#FF9F1C] border-b-2 border-[#A2D2FF]' : 'text-gray-500 hover:text-[#A2D2FF]'
                                 }`}
                         >
                             <Activity className="w-5 h-5" />
@@ -48,7 +48,7 @@ export default function Navbar() {
 
                         <Link
                             href="/profile"
-                            className={`flex items-center gap-2 font-medium transition-colors ${isActive('/profile') ? 'text-[#FF9F1C]' : 'text-gray-500 hover:text-[#A2D2FF]'
+                            className={`flex items-center gap-2 font-medium transition-colors h-full px-2 ${isActive('/profile') ? 'text-[#FF9F1C] border-b-2 border-[#A2D2FF]' : 'text-gray-500 hover:text-[#A2D2FF]'
                                 }`}
                         >
                             <User className="w-5 h-5" />

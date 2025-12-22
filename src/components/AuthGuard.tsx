@@ -2,15 +2,24 @@
 
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
     const { user, loading } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
+    // const [checkingProfile, setCheckingProfile] = useState(true);
 
     useEffect(() => {
+        /*
+        const checkProfile = async () => {
+             // ... Logic commented out ...
+        };
+        */
+
         if (!loading && !user && pathname !== '/login') {
             router.push('/login');
         }
@@ -24,7 +33,5 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         );
     }
 
-    // If on login page, or user exists, render children
-    // (We handled redirect above for !user && !login)
     return <>{children}</>;
 }

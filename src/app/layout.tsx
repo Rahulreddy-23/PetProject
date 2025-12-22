@@ -19,7 +19,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "PetProject",
-  description: "Your AI-powered Pet Health Companion",
+  description: "Everything pets",
+  icons: {
+    icon: '/logo.png',
+  }
 };
 
 export default function RootLayout({

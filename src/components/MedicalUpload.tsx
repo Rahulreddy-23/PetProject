@@ -6,7 +6,7 @@ import { Upload, FileText, Check, Loader2, Save } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { db, storage } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs } from 'firebase/firestore';
 import { MedicalRecord, MedicalRecordType } from '@/types/schema';
 
 // Health Timeline Component (Inline for now or extracted later)
@@ -115,6 +115,25 @@ export default function MedicalUpload() {
     const [loading, setLoading] = useState(false);
     const [scanResult, setScanResult] = useState<Partial<MedicalRecord>>({});
     const [fileUrl, setFileUrl] = useState<string>('');
+    const [pets, setPets] = useState<any[]>([]);
+    const [selectedPetId, setSelectedPetId] = useState<string>('');
+
+    // Fetch pets on mount
+    React.useEffect(() => {
+        const fetchPets = async () => {
+            if (!user) return;
+            try {
+                const petsCol = collection(db, 'users', user.uid, 'pets');
+                const snapshot = await getDocs(petsCol);
+                const petsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setPets(petsData);
+                if (petsData.length > 0) setSelectedPetId(petsData[0].id);
+            } catch (e) {
+                console.error("Error fetching pets", e);
+            }
+        };
+        fetchPets();
+    }, [user]);
 
     const onDrop = useCallback(async (acceptedFiles: File[]) => {
         const file = acceptedFiles[0];
@@ -235,7 +254,20 @@ export default function MedicalUpload() {
             ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'}
           `}
                 >
-                    <input {...getInputProps()} />
+                    <div className="mb-4 w-full max-w-xs mx-auto">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Select Pet</label>
+                        <select
+                            value={selectedPetId}
+                            onChange={(e) => setSelectedPetId(e.target.value)}
+                            className="w-full p-2 border rounded-lg bg-white"
+                        >
+                            <option value="">-- Choose Pet --</option>
+                            {pets.map(pet => (
+                                <option key={pet.id} value={pet.id}>{pet.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <input {...getInputProps()} disabled={!selectedPetId} />
                     <div className="flex flex-col items-center gap-4">
                         <div className="p-4 bg-blue-100 rounded-full text-blue-600">
                             <Upload className="w-8 h-8" />
