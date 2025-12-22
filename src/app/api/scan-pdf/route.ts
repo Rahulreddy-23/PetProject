@@ -5,7 +5,7 @@ const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey || '');
 
 const model: GenerativeModel = genAI.getGenerativeModel({
-    model: 'gemini-1.5-flash',
+    model: 'gemini-2.0-flash',
     generationConfig: {
         responseMimeType: 'application/json',
     },
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const { base64 } = await req.json();
+        const { base64, mimeType } = await req.json();
 
         if (!base64) {
             return NextResponse.json({ error: 'No base64 data provided' }, { status: 400 });
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
             {
                 inlineData: {
                     data: base64Data,
-                    mimeType: 'application/pdf',
+                    mimeType: mimeType || 'application/pdf', // Use provided or default
                 },
             },
             "Extract the medical data from this document.",
@@ -65,8 +65,20 @@ export async function POST(req: NextRequest) {
         const extractedData = JSON.parse(text);
 
         return NextResponse.json(extractedData);
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error processing with Gemini:', error);
-        return NextResponse.json({ error: 'Failed to process document with AI' }, { status: 500 });
+
+        // Log detailed error info if available
+        if (error.response) {
+            console.error('Gemini API Response Error:', JSON.stringify(error.response, null, 2));
+        }
+        if (error.message) {
+            console.error('Error Message:', error.message);
+        }
+
+        return NextResponse.json({
+            error: 'Failed to process document with AI',
+            details: error.message || 'Unknown error'
+        }, { status: 500 });
     }
 }

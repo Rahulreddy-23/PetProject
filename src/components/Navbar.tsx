@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ShoppingBag, Activity, User, Heart } from 'lucide-react';
+import { ShoppingBag, Activity, User, Camera } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 
 export default function Navbar() {
@@ -35,6 +35,15 @@ export default function Navbar() {
                         >
                             <ShoppingBag className="w-5 h-5" />
                             <span className="hidden sm:inline">Store</span>
+                        </Link>
+
+                        <Link
+                            href="/petbook"
+                            className={`flex items-center gap-2 font-medium transition-colors h-full px-2 ${isActive('/petbook') ? 'text-[#FF9F1C] border-b-2 border-[#A2D2FF]' : 'text-gray-500 hover:text-[#A2D2FF]'
+                                }`}
+                        >
+                            <Camera className="w-5 h-5" />
+                            <span className="hidden sm:inline">Petbook</span>
                         </Link>
 
                         <Link

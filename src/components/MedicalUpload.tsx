@@ -161,7 +161,10 @@ export default function MedicalUpload() {
                 const response = await fetch('/api/scan-pdf', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ base64 }), // Pass base64 directly
+                    body: JSON.stringify({
+                        base64,
+                        mimeType: file.type // Send actual mime type
+                    }),
                 });
 
                 if (!response.ok) {
@@ -229,53 +232,92 @@ export default function MedicalUpload() {
             return;
         }
         try {
+            // Sanitize scanResult to remove undefined values
+            const cleanData = JSON.parse(JSON.stringify(scanResult));
+
             const recordsCol = collection(db, 'users', user.uid, 'medical_records');
             await addDoc(recordsCol, {
-                ...scanResult,
-                pdfUrl: fileUrl,
+                ...cleanData,
+                pdfUrl: fileUrl || null,
                 userId: user.uid,
                 createdAt: new Date().toISOString(),
             });
             alert("Record Saved!");
             setStep(1);
             setScanResult({});
-        } catch (e) {
-            console.error("Error saving", e);
-            alert("Error saving record");
+            setFileUrl('');
+        } catch (e: any) {
+            console.error("Error saving record:", e);
+            alert(`Error saving record: ${e.message}`);
         }
+    };
+
+    const handleManualEntry = () => {
+        setScanResult({
+            date: new Date().toISOString().split('T')[0],
+            type: 'Checkup',
+            summary: '',
+            structuredData: { medications: [], diagnosis: '' },
+            extractedData: { nextVaccinationDate: '', suggestedReminderDate: '', petName: '' },
+            isAiProcessed: false
+        });
+        setFileUrl('');
+        setStep(3); // Jump to editor
     };
 
     return (
         <div className="w-full max-w-4xl mx-auto p-4">
             {step === 1 && (
-                <div
-                    {...getRootProps()}
-                    className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors cursor-pointer
-            ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'}
-          `}
-                >
-                    <div className="mb-4 w-full max-w-xs mx-auto">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Select Pet</label>
-                        <select
-                            value={selectedPetId}
-                            onChange={(e) => setSelectedPetId(e.target.value)}
-                            className="w-full p-2 border rounded-lg bg-white"
-                        >
-                            <option value="">-- Choose Pet --</option>
-                            {pets.map(pet => (
-                                <option key={pet.id} value={pet.id}>{pet.name}</option>
-                            ))}
-                        </select>
+                <div className="max-w-xl mx-auto space-y-6">
+                    <div className="text-center">
+                        <h2 className="text-2xl font-bold text-gray-800">Medical Record Scanner</h2>
+                        <p className="text-gray-500">Upload a record to extract insights using AI</p>
                     </div>
-                    <input {...getInputProps()} disabled={!selectedPetId} />
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="p-4 bg-blue-100 rounded-full text-blue-600">
-                            <Upload className="w-8 h-8" />
+
+                    <div
+                        {...getRootProps()}
+                        className={`border-2 border-dashed rounded-3xl p-10 text-center transition-all cursor-pointer relative overflow-hidden group
+                            ${isDragActive ? 'border-[#A2D2FF] bg-blue-50 scale-[1.02]' : 'border-gray-200 hover:border-[#A2D2FF] hover:bg-gray-50'}`}
+                    >
+                        {/* Styled Dropdown - Floating top center or integrated */}
+                        <div className="mb-8 relative z-20" onClick={(e) => e.stopPropagation()}>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Select Pet to Scan For</label>
+                            <div className="relative inline-block w-full max-w-xs">
+                                <select
+                                    value={selectedPetId}
+                                    onChange={(e) => setSelectedPetId(e.target.value)}
+                                    className="w-full appearance-none px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#A2D2FF] focus:border-[#A2D2FF] outline-none text-gray-700 font-medium cursor-pointer shadow-sm hover:border-gray-300 transition-colors"
+                                >
+                                    <option value="">-- Choose a Pet --</option>
+                                    {pets.map(pet => (
+                                        <option key={pet.id} value={pet.id}>{pet.name} ({pet.species})</option>
+                                    ))}
+                                </select>
+                                <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-500">
+                                    <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" fillRule="evenodd"></path></svg>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-lg font-medium text-gray-700">Drop your pet's medical record here</p>
-                            <p className="text-sm text-gray-500 mt-1">PDF, PNG, JPG supported</p>
+
+                        <input {...getInputProps()} disabled={!selectedPetId} />
+
+                        <div className={`flex flex-col items-center gap-4 transition-opacity duration-200 ${!selectedPetId ? 'opacity-40 grayscale' : 'opacity-100'}`}>
+                            <div className={`p-5 rounded-full transition-transform duration-500 ${isDragActive ? 'bg-blue-100 scale-110' : 'bg-blue-50'}`}>
+                                <Upload className={`w-10 h-10 ${isDragActive ? 'text-blue-600' : 'text-[#A2D2FF]'}`} />
+                            </div>
+                            <div>
+                                <p className="text-xl font-bold text-gray-700">Drop file here or click to browse</p>
+                                <p className="text-sm text-gray-400 mt-2">Supports PDF, JPG, PNG</p>
+                            </div>
                         </div>
+
+                        {!selectedPetId && (
+                            <div className="absolute inset-x-0 bottom-10 text-center pointer-events-none">
+                                <span className="bg-red-50 text-red-500 px-4 py-1 rounded-full text-xs font-bold animate-pulse">
+                                    Please select a pet first
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

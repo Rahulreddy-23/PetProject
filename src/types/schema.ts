@@ -58,3 +58,28 @@ export interface Product {
     tags: string[]; // e.g., "senior-dog", "allergy-friendly"
     rating: number; // 0-5
 }
+
+export interface Post {
+    id: string;
+    userId: string;
+    authorName: string; // Denormalized
+    authorPhoto: string | null; // Denormalized
+    petId?: string; // Optional linkage to a specific pet
+    mediaUrl: string;
+    mediaType: 'image' | 'video';
+    mediaWidth?: number; // For avoiding layout shifts
+    mediaHeight?: number;
+    caption: string;
+    likes: string[]; // Array of User IDs
+    createdAt: string; // ISO date string
+}
+
+export interface Comment {
+    id: string;
+    postId: string;
+    userId: string;
+    userName: string; // Denormalized for display
+    userPhoto: string | null; // Denormalized
+    text: string;
+    createdAt: string; // ISO date string
+}

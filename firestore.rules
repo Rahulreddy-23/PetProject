@@ -1,21 +1,55 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Products remain public
+    
+    // 1. Products: Publicly readable, writeable only by admins
     match /products/{productId} {
       allow read: if true;
       allow write: if request.auth != null && request.auth.token.role == "admin";
     }
 
-    // User & Sub-collection rules (Pets, Medical Records)
+    // 2. Users & Sub-collections
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Social Recommendation: Allow any logged-in user to read profiles (name/photo)
+      // but keep writes restricted to the account owner.
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
 
-      // Allows access to "pets", "medical_records", etc. ONLY for this user
+      // Private Sub-collections (e.g., medical records, private pet data)
+      // remain restricted to the owner.
       match /{allSubcollections=**} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
+    }
+
+    // 3. Petbook Posts
+    match /posts/{postId} {
+      // Allow all logged-in users to view the feed
+      allow read: if request.auth != null;
+      
+      // Allow creation only if the user is authenticated and is the author
+      allow create: if request.auth != null 
+                    && request.resource.data.userId == request.auth.uid;
+      
+      // Allow the author to edit/delete their own post
+      allow update, delete: if request.auth != null 
+                            && resource.data.userId == request.auth.uid;
+      
+      // SPECIAL RULE: Allow any logged-in user to 'like' a post 
+      // even if they aren't the author (only if they are ONLY changing the 'likes' field)
+      allow update: if request.auth != null 
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']);
+    }
+
+    // 4. Petbook Comments
+    match /comments/{commentId} {
+      allow read: if request.auth != null;
+      
+      allow create: if request.auth != null 
+                    && request.resource.data.userId == request.auth.uid;
+      
+      allow delete: if request.auth != null 
+                    && resource.data.userId == request.auth.uid;
     }
   }
 }
