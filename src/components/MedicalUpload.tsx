@@ -2,112 +2,12 @@
 
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileText, Check, Loader2, Save } from 'lucide-react';
+import { Upload, FileText, Check, Loader2, Save, Shield, Syringe, Calendar, Pill, AlertCircle, Plus } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { db, storage } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { collection, addDoc, getDocs } from 'firebase/firestore';
 import { MedicalRecord, MedicalRecordType } from '@/types/schema';
-
-// Health Timeline Component (Inline for now or extracted later)
-const HealthTimeline = ({
-    data,
-    onSave,
-    onEdit
-}: {
-    data: Partial<MedicalRecord>,
-    onSave: () => void,
-    onEdit: (field: string, value: any) => void
-}) => {
-    return (
-        <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 max-w-2xl mx-auto mt-8">
-            <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                <FileText className="w-6 h-6 text-blue-500" />
-                New Record Summary
-            </h3>
-
-            <div className="space-y-4 relative pl-4 border-l-2 border-blue-100 ml-2">
-                {/* Timeline Item: Date */}
-                <div className="relative">
-                    <div className="absolute -left-[21px] top-2 w-3 h-3 rounded-full bg-blue-500 ring-4 ring-white" />
-                    <label className="block text-sm font-medium text-gray-500 mb-1">Date of Visit</label>
-                    <input
-                        type="date"
-                        value={data.date || ''}
-                        onChange={(e) => onEdit('date', e.target.value)}
-                        className="w-full p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none"
-                    />
-                </div>
-
-                {/* Timeline Item: Type */}
-                <div className="relative pt-4">
-                    <div className="absolute -left-[21px] top-6 w-3 h-3 rounded-full bg-blue-500 ring-4 ring-white" />
-                    <label className="block text-sm font-medium text-gray-500 mb-1">Record Type</label>
-                    <select
-                        value={data.type || 'Checkup'}
-                        onChange={(e) => onEdit('type', e.target.value)}
-                        className="w-full p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none"
-                    >
-                        <option value="Vaccination">Vaccination</option>
-                        <option value="Checkup">Checkup</option>
-                        <option value="Surgery">Surgery</option>
-                        <option value="Other">Other</option>
-                    </select>
-                </div>
-
-                {/* Timeline Item: Diagnosis */}
-                <div className="relative pt-4">
-                    <div className="absolute -left-[21px] top-6 w-3 h-3 rounded-full bg-purple-500 ring-4 ring-white" />
-                    <label className="block text-sm font-medium text-gray-500 mb-1">Diagnosis / Summary</label>
-                    <textarea
-                        value={data.summary || ''}
-                        onChange={(e) => onEdit('summary', e.target.value)}
-                        className="w-full p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 outline-none min-h-[80px]"
-                        placeholder="Review diagnosis..."
-                    />
-                </div>
-
-                {/* Timeline Item: Medications */}
-                <div className="relative pt-4">
-                    <div className="absolute -left-[21px] top-6 w-3 h-3 rounded-full bg-green-500 ring-4 ring-white" />
-                    <label className="block text-sm font-medium text-gray-500 mb-1">Medications</label>
-                    <div className="bg-gray-50 p-2 rounded-lg border border-gray-200 text-sm font-mono text-gray-700">
-                        {/* Simple editable text for now for array */}
-                        <input
-                            type="text"
-                            value={data.structuredData?.medications?.join(', ') || ''}
-                            onChange={(e) => onEdit('medications', e.target.value.split(',').map(s => s.trim()))}
-                            className="w-full bg-transparent outline-none"
-                            placeholder="Medicine A, Medicine B"
-                        />
-                    </div>
-                </div>
-
-                {/* Timeline Item: Next Vax */}
-                <div className="relative pt-4">
-                    <div className="absolute -left-[21px] top-6 w-3 h-3 rounded-full bg-pink-500 ring-4 ring-white" />
-                    <label className="block text-sm font-medium text-gray-500 mb-1">Next Vaccination (Reminder)</label>
-                    <input
-                        type="date"
-                        value={data.extractedData?.nextVaccinationDate || ''}
-                        onChange={(e) => onEdit('nextVaccinationDate', e.target.value)}
-                        className="w-full p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-pink-500 outline-none"
-                    />
-                </div>
-            </div>
-
-            <div className="mt-8 flex justify-end">
-                <button
-                    onClick={onSave}
-                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-md font-medium"
-                >
-                    <Save className="w-5 h-5" />
-                    Save to Database
-                </button>
-            </div>
-        </div>
-    );
-};
 
 export default function MedicalUpload() {
     const { user } = useAuth();
@@ -117,8 +17,8 @@ export default function MedicalUpload() {
     const [fileUrl, setFileUrl] = useState<string>('');
     const [pets, setPets] = useState<any[]>([]);
     const [selectedPetId, setSelectedPetId] = useState<string>('');
+    const [saving, setSaving] = useState(false);
 
-    // Fetch pets on mount
     React.useEffect(() => {
         const fetchPets = async () => {
             if (!user) return;
@@ -137,19 +37,17 @@ export default function MedicalUpload() {
 
     const onDrop = useCallback(async (acceptedFiles: File[]) => {
         const file = acceptedFiles[0];
-        if (!file) return;
+        if (!file || !selectedPetId) return;
 
         setLoading(true);
-        setStep(2); // Processing
+        setStep(2);
 
         try {
-            // 1. Convert to Base64 for API
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onload = async () => {
                 const base64 = reader.result as string;
 
-                // 2. Upload to Firebase Storage
                 if (user) {
                     const storageRef = ref(storage, `medical_records/${user.uid}/${Date.now()}_${file.name}`);
                     const snapshot = await uploadBytes(storageRef, file);
@@ -157,27 +55,20 @@ export default function MedicalUpload() {
                     setFileUrl(url);
                 }
 
-                // 3. Call AI API
                 const response = await fetch('/api/scan-pdf', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        base64,
-                        mimeType: file.type // Send actual mime type
-                    }),
+                    body: JSON.stringify({ base64, mimeType: file.type }),
                 });
 
-                if (!response.ok) {
-                    throw new Error(`API Error: ${response.statusText}`);
-                }
+                if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
 
                 const data = await response.json();
 
-                // 4. Map API data to Form State
                 setScanResult({
-                    petId: 'temp-pet-id', // Needs actual Pet ID in real app
+                    petId: selectedPetId,
                     date: data.dateOfVisit || new Date().toISOString().split('T')[0],
-                    type: 'Checkup', // Default, logic could infer
+                    type: 'Checkup',
                     summary: data.diagnosis || 'Routine Checkup',
                     structuredData: {
                         medications: data.medications || [],
@@ -191,7 +82,7 @@ export default function MedicalUpload() {
                     isAiProcessed: true,
                 });
 
-                setStep(3); // Review
+                setStep(3);
                 setLoading(false);
             };
         } catch (error) {
@@ -200,7 +91,7 @@ export default function MedicalUpload() {
             setStep(1);
             setLoading(false);
         }
-    }, [user]);
+    }, [user, selectedPetId]);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
@@ -211,30 +102,21 @@ export default function MedicalUpload() {
     const handleEdit = (field: string, value: any) => {
         setScanResult(prev => {
             if (field === 'medications') {
-                return {
-                    ...prev,
-                    structuredData: { ...prev.structuredData, medications: value }
-                };
+                return { ...prev, structuredData: { ...prev.structuredData, medications: value } };
             }
             if (field === 'nextVaccinationDate') {
-                return {
-                    ...prev,
-                    extractedData: { ...prev.extractedData, nextVaccinationDate: value }
-                }
+                return { ...prev, extractedData: { ...prev.extractedData, nextVaccinationDate: value } };
             }
             return { ...prev, [field]: value };
         });
     };
 
     const handleSave = async () => {
-        if (!user) {
-            alert("You must be logged in to save records.");
-            return;
-        }
-        try {
-            // Sanitize scanResult to remove undefined values
-            const cleanData = JSON.parse(JSON.stringify(scanResult));
+        if (!user) return alert("You must be logged in to save records.");
 
+        setSaving(true);
+        try {
+            const cleanData = JSON.parse(JSON.stringify(scanResult));
             const recordsCol = collection(db, 'users', user.uid, 'medical_records');
             await addDoc(recordsCol, {
                 ...cleanData,
@@ -249,11 +131,14 @@ export default function MedicalUpload() {
         } catch (e: any) {
             console.error("Error saving record:", e);
             alert(`Error saving record: ${e.message}`);
+        } finally {
+            setSaving(false);
         }
     };
 
     const handleManualEntry = () => {
         setScanResult({
+            petId: selectedPetId,
             date: new Date().toISOString().split('T')[0],
             type: 'Checkup',
             summary: '',
@@ -262,73 +147,97 @@ export default function MedicalUpload() {
             isAiProcessed: false
         });
         setFileUrl('');
-        setStep(3); // Jump to editor
+        setStep(3);
     };
 
-
+    const selectedPet = pets.find(p => p.id === selectedPetId);
 
     return (
-        <div className="w-full max-w-4xl mx-auto p-4">
+        <div className="w-full max-w-3xl mx-auto p-4">
             {step === 1 && (
-                <div className="max-w-xl mx-auto space-y-6">
-                    <div className="text-center">
-                        <h2 className="text-2xl font-bold text-gray-800">Medical Record Scanner</h2>
-                        <p className="text-gray-500">Upload a record to extract insights using AI</p>
+                <div className="space-y-6">
+                    {/* Passport Header */}
+                    <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-6 text-white text-center relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-12 translate-x-12" />
+                        <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/10 rounded-full translate-y-8 -translate-x-8" />
+
+                        <div className="relative">
+                            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full mb-4">
+                                <Shield className="w-5 h-5" />
+                                <span className="font-bold text-sm">Pet Health Passport</span>
+                            </div>
+                            <h1 className="text-2xl md:text-3xl font-bold mb-2">Medical Records Scanner</h1>
+                            <p className="text-blue-100">Upload documents to extract health insights using AI</p>
+                        </div>
                     </div>
 
+                    {/* Pet Selector */}
+                    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                        <label className="block text-sm font-bold text-gray-700 mb-3">Select Pet</label>
+                        {pets.length === 0 ? (
+                            <div className="text-center py-6 text-gray-500">
+                                <p>No pets added yet. Add a pet in your profile first.</p>
+                            </div>
+                        ) : (
+                            <div className="flex flex-wrap gap-3">
+                                {pets.map(pet => (
+                                    <button
+                                        key={pet.id}
+                                        type="button"
+                                        onClick={() => setSelectedPetId(pet.id)}
+                                        className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all
+                                            ${selectedPetId === pet.id
+                                                ? 'border-blue-500 bg-blue-50 text-blue-700 ring-2 ring-blue-200'
+                                                : 'border-gray-200 hover:border-gray-300 text-gray-700'}`}
+                                    >
+                                        <span className="text-2xl">{pet.species === 'Dog' ? '🐕' : pet.species === 'Cat' ? '🐈' : '🐾'}</span>
+                                        <div className="text-left">
+                                            <p className="font-bold">{pet.name}</p>
+                                            <p className="text-xs opacity-70">{pet.breed}</p>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Upload Area */}
                     <div
                         {...getRootProps()}
-                        className={`border-2 border-dashed rounded-3xl p-10 text-center transition-all cursor-pointer relative overflow-hidden group
-                            ${isDragActive ? 'border-[#A2D2FF] bg-blue-50 scale-[1.02]' : 'border-gray-200 hover:border-[#A2D2FF] hover:bg-gray-50'}`}
+                        className={`border-2 border-dashed rounded-3xl p-10 text-center transition-all cursor-pointer relative overflow-hidden
+                            ${!selectedPetId ? 'opacity-50 cursor-not-allowed' : ''}
+                            ${isDragActive ? 'border-blue-400 bg-blue-50 scale-[1.01]' : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'}`}
                     >
-                        {/* Styled Dropdown - Floating top center or integrated */}
-                        <div className="mb-8 relative z-20" onClick={(e) => e.stopPropagation()}>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Select Pet to Scan For</label>
-                            <div className="relative inline-block w-full max-w-xs">
-                                <select
-                                    value={selectedPetId}
-                                    onChange={(e) => setSelectedPetId(e.target.value)}
-                                    className="w-full appearance-none px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#A2D2FF] focus:border-[#A2D2FF] outline-none text-gray-700 font-medium cursor-pointer shadow-sm hover:border-gray-300 transition-colors"
-                                >
-                                    <option value="">-- Choose a Pet --</option>
-                                    {pets.map(pet => (
-                                        <option key={pet.id} value={pet.id}>{pet.name} ({pet.species})</option>
-                                    ))}
-                                </select>
-                                <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-500">
-                                    <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" fillRule="evenodd"></path></svg>
-                                </div>
-                            </div>
-                        </div>
-
                         <input {...getInputProps()} disabled={!selectedPetId} />
 
-                        <div className={`flex flex-col items-center gap-4 transition-opacity duration-200 ${!selectedPetId ? 'opacity-40 grayscale' : 'opacity-100'}`}>
-                            <div className={`p-5 rounded-full transition-transform duration-500 ${isDragActive ? 'bg-blue-100 scale-110' : 'bg-blue-50'}`}>
-                                <Upload className={`w-10 h-10 ${isDragActive ? 'text-blue-600' : 'text-[#A2D2FF]'}`} />
+                        <div className="flex flex-col items-center gap-4">
+                            <div className={`p-6 rounded-full transition-all ${isDragActive ? 'bg-blue-100 scale-110' : 'bg-gradient-to-br from-blue-50 to-indigo-50'}`}>
+                                <Upload className={`w-10 h-10 ${isDragActive ? 'text-blue-600' : 'text-blue-400'}`} />
                             </div>
                             <div>
-                                <p className="text-xl font-bold text-gray-700">Drop file here or click to browse</p>
-                                <p className="text-sm text-gray-400 mt-2">Supports PDF, JPG, PNG</p>
+                                <p className="text-xl font-bold text-gray-700">Drop your medical document here</p>
+                                <p className="text-sm text-gray-400 mt-2">PDF, JPG, or PNG up to 10MB</p>
                             </div>
                         </div>
 
                         {!selectedPetId && (
-                            <div className="absolute inset-x-0 bottom-10 text-center pointer-events-none">
-                                <span className="bg-red-50 text-red-500 px-4 py-1 rounded-full text-xs font-bold animate-pulse">
-                                    Please select a pet first
+                            <div className="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+                                <span className="bg-red-50 text-red-500 px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2">
+                                    <AlertCircle className="w-4 h-4" /> Please select a pet first
                                 </span>
                             </div>
                         )}
                     </div>
 
-                    <div className="flex justify-center pt-4">
+                    {/* Manual Entry */}
+                    <div className="text-center">
                         <button
                             onClick={handleManualEntry}
-                            className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center gap-2 transition-colors"
+                            disabled={!selectedPetId}
+                            className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center gap-2 mx-auto transition disabled:opacity-50"
                         >
-                            <FileText className="w-4 h-4" />
-                            Or create a record manually without scanning
+                            <Plus className="w-4 h-4" />
+                            Create a record manually
                         </button>
                     </div>
                 </div>
@@ -337,22 +246,130 @@ export default function MedicalUpload() {
             {step === 2 && (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
                     <div className="relative">
-                        <Loader2 className="w-16 h-16 text-blue-500 animate-spin" />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-2xl">🐾</span>
+                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
+                            <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+                        </div>
+                        <div className="absolute -bottom-2 -right-2 w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-2xl animate-bounce">
+                            🐾
                         </div>
                     </div>
-                    <h3 className="mt-6 text-xl font-semibold text-gray-800">Analyze Paws & Claws...</h3>
-                    <p className="text-gray-500 mt-2">Our AI is reading the medical wizardry.</p>
+                    <h3 className="mt-8 text-2xl font-bold text-gray-800">Analyzing Document...</h3>
+                    <p className="text-gray-500 mt-2">Our AI is extracting health information</p>
                 </div>
             )}
 
             {step === 3 && (
-                <HealthTimeline
-                    data={scanResult}
-                    onSave={handleSave}
-                    onEdit={handleEdit}
-                />
+                <div className="space-y-6">
+                    {/* Passport Card Header */}
+                    <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-6 text-white">
+                        <div className="flex items-center gap-4">
+                            <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center text-3xl">
+                                {selectedPet?.species === 'Dog' ? '🐕' : selectedPet?.species === 'Cat' ? '🐈' : '🐾'}
+                            </div>
+                            <div>
+                                <h2 className="text-2xl font-bold">{selectedPet?.name || 'Your Pet'}</h2>
+                                <p className="text-emerald-100">{selectedPet?.breed || 'Pet'} • Health Record</p>
+                            </div>
+                            {scanResult.isAiProcessed && (
+                                <div className="ml-auto bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                                    <Check className="w-3 h-3" /> AI Verified
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Record Form */}
+                    <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-5">
+                        {/* Date & Type */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2">
+                                    <Calendar className="w-4 h-4 text-blue-500" /> Date of Visit
+                                </label>
+                                <input
+                                    type="date"
+                                    value={scanResult.date || ''}
+                                    onChange={(e) => handleEdit('date', e.target.value)}
+                                    className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-200 outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2">
+                                    <FileText className="w-4 h-4 text-purple-500" /> Record Type
+                                </label>
+                                <select
+                                    value={scanResult.type || 'Checkup'}
+                                    onChange={(e) => handleEdit('type', e.target.value)}
+                                    className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-200 outline-none"
+                                >
+                                    <option value="Vaccination">💉 Vaccination</option>
+                                    <option value="Checkup">🩺 Checkup</option>
+                                    <option value="Surgery">⚕️ Surgery</option>
+                                    <option value="Other">📋 Other</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Diagnosis */}
+                        <div>
+                            <label className="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2">
+                                <Shield className="w-4 h-4 text-emerald-500" /> Diagnosis / Summary
+                            </label>
+                            <textarea
+                                value={scanResult.summary || ''}
+                                onChange={(e) => handleEdit('summary', e.target.value)}
+                                className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-200 outline-none resize-none"
+                                rows={3}
+                                placeholder="Describe the diagnosis or visit summary..."
+                            />
+                        </div>
+
+                        {/* Medications */}
+                        <div>
+                            <label className="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2">
+                                <Pill className="w-4 h-4 text-pink-500" /> Medications
+                            </label>
+                            <input
+                                type="text"
+                                value={scanResult.structuredData?.medications?.join(', ') || ''}
+                                onChange={(e) => handleEdit('medications', e.target.value.split(',').map(s => s.trim()))}
+                                className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-200 outline-none"
+                                placeholder="Medicine A, Medicine B, ..."
+                            />
+                        </div>
+
+                        {/* Next Vaccination */}
+                        <div>
+                            <label className="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2">
+                                <Syringe className="w-4 h-4 text-orange-500" /> Next Vaccination Due
+                            </label>
+                            <input
+                                type="date"
+                                value={scanResult.extractedData?.nextVaccinationDate || ''}
+                                onChange={(e) => handleEdit('nextVaccinationDate', e.target.value)}
+                                className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-200 outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Save Button */}
+                    <div className="flex gap-3">
+                        <button
+                            onClick={() => setStep(1)}
+                            className="flex-1 py-4 border border-gray-200 text-gray-600 rounded-2xl font-bold hover:bg-gray-50 transition"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleSave}
+                            disabled={saving}
+                            className="flex-1 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-2xl font-bold hover:opacity-90 transition shadow-lg shadow-emerald-100 flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                            {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                            Save to Health Passport
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     );

@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Post, Comment } from '@/types/schema';
 import { useAuth } from '@/context/AuthContext';
 import { toggleLike, addComment, getCommentsForPost, deletePost } from '@/lib/petbook';
-import { Heart, MessageCircle, Send, Trash2, MoreHorizontal } from 'lucide-react';
+import { Heart, MessageCircle, Trash2, ChevronLeft, ChevronRight, Globe, Users, Lock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import Link from 'next/link';
 
 interface PostCardProps {
     post: Post;
@@ -20,17 +21,17 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
     const [newComment, setNewComment] = useState('');
     const [loadingComments, setLoadingComments] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [currentImage, setCurrentImage] = useState(0);
 
-    // VideoRefs
     const videoRef = useRef<HTMLVideoElement>(null);
 
     const isLiked = user ? likes.includes(user.uid) : false;
     const isOwner = user?.uid === post.userId;
+    const mediaUrls = post.mediaUrls || [];
 
     const handleLike = async () => {
-        if (!user) return; // Or show login modal
+        if (!user) return;
 
-        // Optimistic update
         const previousLikes = [...likes];
         if (isLiked) {
             setLikes(likes.filter(id => id !== user.uid));
@@ -42,7 +43,7 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
             await toggleLike(post.id, user.uid);
         } catch (error) {
             console.error("Failed to like post", error);
-            setLikes(previousLikes); // Revert
+            setLikes(previousLikes);
         }
     };
 
@@ -60,7 +61,6 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
             };
 
             const commentId = await addComment(commentData);
-
             setComments([...comments, { ...commentData, id: commentId, createdAt: new Date().toISOString() } as Comment]);
             setNewComment('');
         } catch (error) {
@@ -84,7 +84,7 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
 
         setIsDeleting(true);
         try {
-            await deletePost(post.id, user.uid, post.mediaUrl);
+            await deletePost(post.id, user!.uid, mediaUrls);
             if (onDelete) onDelete(post.id);
         } catch (error) {
             console.error("Failed to delete post", error);
@@ -93,12 +93,14 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
         }
     };
 
+    const VisibilityIcon = post.visibility === 'public' ? Globe : post.visibility === 'friends' ? Users : Lock;
+
     return (
         <div className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm mb-6">
             {/* Header */}
             <div className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden relative border border-gray-100">
+                    <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden border border-gray-100">
                         {post.authorPhoto ? (
                             <img src={post.authorPhoto} alt={post.authorName} className="w-full h-full object-cover" />
                         ) : (
@@ -109,44 +111,84 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
                     </div>
                     <div>
                         <h3 className="font-bold text-gray-900 text-sm">{post.authorName}</h3>
-                        {post.petId && (
-                            <span className="text-xs text-gray-500 block">with a Pet 🐾</span>
+                        {post.authorUsername && (
+                            <Link href={`/profile/${post.authorUsername}`} className="text-xs text-gray-500 hover:underline">
+                                @{post.authorUsername}
+                            </Link>
                         )}
                     </div>
                 </div>
-                {isOwner && (
-                    <button
-                        onClick={handleDelete}
-                        disabled={isDeleting}
-                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                        aria-label="Delete Post"
-                    >
-                        {isDeleting ? <span className="text-xs">Deleting...</span> : <Trash2 className="w-5 h-5" />}
-                    </button>
-                )}
+                <div className="flex items-center gap-2">
+                    <VisibilityIcon className="w-4 h-4 text-gray-400" />
+                    {isOwner && (
+                        <button
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                            aria-label="Delete Post"
+                        >
+                            {isDeleting ? <span className="text-xs">Deleting...</span> : <Trash2 className="w-5 h-5" />}
+                        </button>
+                    )}
+                </div>
             </div>
 
-            {/* Media */}
+            {/* Media - Carousel Support */}
             <div className="relative bg-black w-full" style={{ minHeight: '300px' }}>
-                {post.mediaType === 'video' ? (
+                {post.mediaType === 'video' && mediaUrls[0] ? (
                     <video
                         ref={videoRef}
-                        src={post.mediaUrl}
+                        src={mediaUrls[0]}
                         className="w-full h-auto max-h-[600px] object-contain mx-auto"
                         controls
                         playsInline
                         loop
                         muted
                     />
+                ) : mediaUrls.length > 0 ? (
+                    <>
+                        <img
+                            src={mediaUrls[currentImage]}
+                            alt="Post content"
+                            loading="lazy"
+                            className="w-full h-auto max-h-[600px] object-contain mx-auto"
+                            width={post.mediaWidth}
+                            height={post.mediaHeight}
+                        />
+
+                        {/* Carousel Navigation */}
+                        {mediaUrls.length > 1 && (
+                            <>
+                                <button
+                                    onClick={() => setCurrentImage(p => Math.max(0, p - 1))}
+                                    disabled={currentImage === 0}
+                                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full disabled:opacity-30"
+                                >
+                                    <ChevronLeft className="w-5 h-5" />
+                                </button>
+                                <button
+                                    onClick={() => setCurrentImage(p => Math.min(mediaUrls.length - 1, p + 1))}
+                                    disabled={currentImage === mediaUrls.length - 1}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full disabled:opacity-30"
+                                >
+                                    <ChevronRight className="w-5 h-5" />
+                                </button>
+
+                                {/* Dots */}
+                                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                                    {mediaUrls.map((_, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => setCurrentImage(i)}
+                                            className={`w-2 h-2 rounded-full transition ${i === currentImage ? 'bg-white' : 'bg-white/50'}`}
+                                        />
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </>
                 ) : (
-                    <img
-                        src={post.mediaUrl}
-                        alt="Post content"
-                        loading="lazy"
-                        className="w-full h-auto max-h-[600px] object-contain mx-auto"
-                        width={post.mediaWidth}
-                        height={post.mediaHeight}
-                    />
+                    <div className="w-full h-[300px] flex items-center justify-center text-gray-500">No media</div>
                 )}
             </div>
 
@@ -178,6 +220,15 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
                     <span className="text-gray-800">{post.caption}</span>
                 </div>
 
+                {/* Tags */}
+                {post.tags && post.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                        {post.tags.map(tag => (
+                            <span key={tag} className="text-xs text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">#{tag}</span>
+                        ))}
+                    </div>
+                )}
+
                 <p className="text-xs text-gray-400 uppercase tracking-wide mb-4">
                     {(() => {
                         try {
@@ -191,7 +242,7 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
                 {/* Comments Section */}
                 {showComments && (
                     <div className="border-t border-gray-100 pt-4 animate-in fade-in slide-in-from-top-2">
-                        <div className="max-h-60 overflow-y-auto space-y-3 mb-4 custom-scrollbar">
+                        <div className="max-h-60 overflow-y-auto space-y-3 mb-4">
                             {loadingComments ? (
                                 <p className="text-center text-gray-400 text-sm">Loading comments...</p>
                             ) : comments.length > 0 ? (

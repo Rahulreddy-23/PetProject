@@ -54,6 +54,14 @@ export const uploadMedia = async (file: File, userId: string): Promise<string> =
     });
 };
 
+/**
+ * Upload multiple media files for carousel posts.
+ */
+export const uploadMultipleMedia = async (files: File[], userId: string): Promise<string[]> => {
+    const uploadPromises = files.map(file => uploadMedia(file, userId));
+    return Promise.all(uploadPromises);
+};
+
 export const createPost = async (postData: Omit<Post, 'id' | 'createdAt' | 'likes'>): Promise<string> => {
     try {
         // Sanitize data to remove undefined values (e.g. petId)
@@ -71,10 +79,11 @@ export const createPost = async (postData: Omit<Post, 'id' | 'createdAt' | 'like
     }
 };
 
-export const getPosts = async (lastDoc?: QueryDocumentSnapshot<DocumentData>, pageSize: number = 5) => {
+export const getPosts = async (lastDoc?: QueryDocumentSnapshot<DocumentData>, pageSize: number = 5, visibility: 'public' | 'friends' | 'private' = 'public') => {
     try {
         let q = query(
             collection(db, "posts"),
+            where("visibility", "==", visibility),
             orderBy("createdAt", "desc"),
             limit(pageSize)
         );
@@ -82,6 +91,7 @@ export const getPosts = async (lastDoc?: QueryDocumentSnapshot<DocumentData>, pa
         if (lastDoc) {
             q = query(
                 collection(db, "posts"),
+                where("visibility", "==", visibility),
                 orderBy("createdAt", "desc"),
                 startAfter(lastDoc),
                 limit(pageSize)
@@ -157,14 +167,20 @@ export const getCommentsForPost = async (postId: string): Promise<Comment[]> => 
     }
 }
 
-export const deletePost = async (postId: string, userId: string, mediaUrl: string): Promise<void> => {
+export const deletePost = async (postId: string, userId: string, mediaUrls: string[]): Promise<void> => {
     try {
         // 1. Delete from Firestore
         await deleteDoc(doc(db, "posts", postId));
 
-        // 2. Delete from Storage
-        const fileRef = ref(storage, mediaUrl);
-        await deleteObject(fileRef);
+        // 2. Delete all media from Storage
+        for (const url of mediaUrls) {
+            try {
+                const fileRef = ref(storage, url);
+                await deleteObject(fileRef);
+            } catch (e) {
+                console.warn("Could not delete file:", url, e);
+            }
+        }
     } catch (error) {
         console.error("Error deleting post:", error);
         throw error;

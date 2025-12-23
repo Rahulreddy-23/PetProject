@@ -3,41 +3,106 @@
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
-import { useCart } from '@/context/CartContext';
 import { db } from '@/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
-import { Product, Pet } from '@/types/schema';
-import { ShoppingCart, X, Plus, Trash2, CheckCircle, Smartphone } from 'lucide-react';
+import { Pet } from '@/types/schema';
+import { ExternalLink, ShoppingBag, Sparkles, Star } from 'lucide-react';
 
-const MOCK_PRODUCTS: Product[] = [
-    { id: '1', name: 'Premium Dog Food', description: 'High protein for active dogs.', price: 500, category: 'Food', imageUrl: 'https://placehold.co/400x400/png?text=Dog+Food', stock: 10, rating: 4.8, tags: ['food', 'dog'] },
-    { id: '2', name: 'Catnip Toy', description: 'Organic catnip.', price: 150, category: 'Toys', imageUrl: 'https://placehold.co/400x400/png?text=Cat+Toy', stock: 50, rating: 4.5, tags: ['toy', 'cat'] },
-    { id: '3', name: 'Large Breed Kibble', description: 'Specific for Golden Retrievers and Labs.', price: 1200, category: 'Food', imageUrl: 'https://placehold.co/400x400/png?text=Large+Kibble', stock: 20, rating: 4.9, tags: ['food', 'dog', 'large-breed', 'golden-retriever'] },
-    { id: '4', name: 'Vaccine Passport Holder', description: 'Keep records safe.', price: 200, category: 'Accessories', imageUrl: 'https://placehold.co/400x400/png?text=Passport', stock: 100, rating: 4.2, tags: ['accessory'] },
+interface AffiliateProduct {
+    id: string;
+    name: string;
+    description: string;
+    price: string;
+    imageUrl: string;
+    affiliateUrl: string;
+    rating: number;
+    tags: string[];
+}
+
+const AFFILIATE_PRODUCTS: AffiliateProduct[] = [
+    {
+        id: '1',
+        name: 'Premium Grain-Free Dog Food',
+        description: 'High protein, grain-free nutrition for active dogs. Made with real chicken.',
+        price: '₹2,499',
+        imageUrl: 'https://placehold.co/400x400/f8fafc/64748b?text=🐕+Food',
+        affiliateUrl: 'https://amazon.in/?tag=YOUR_TAG',
+        rating: 4.8,
+        tags: ['food', 'dog']
+    },
+    {
+        id: '2',
+        name: 'Interactive Cat Toy Bundle',
+        description: 'Keep your feline entertained for hours with this 5-piece toy set.',
+        price: '₹899',
+        imageUrl: 'https://placehold.co/400x400/fef3c7/92400e?text=🐈+Toys',
+        affiliateUrl: 'https://amazon.in/?tag=YOUR_TAG',
+        rating: 4.6,
+        tags: ['toy', 'cat']
+    },
+    {
+        id: '3',
+        name: 'Orthopedic Pet Bed - Large',
+        description: 'Memory foam bed for senior dogs. Joint support & easy to clean cover.',
+        price: '₹3,999',
+        imageUrl: 'https://placehold.co/400x400/e0e7ff/3730a3?text=🛏️+Bed',
+        affiliateUrl: 'https://amazon.in/?tag=YOUR_TAG',
+        rating: 4.9,
+        tags: ['bed', 'dog', 'large-breed']
+    },
+    {
+        id: '4',
+        name: 'Automatic Water Fountain',
+        description: 'Fresh, filtered water 24/7. 2L capacity, ultra-quiet pump.',
+        price: '₹1,299',
+        imageUrl: 'https://placehold.co/400x400/dcfce7/166534?text=💧+Fountain',
+        affiliateUrl: 'https://amazon.in/?tag=YOUR_TAG',
+        rating: 4.5,
+        tags: ['accessory', 'cat', 'dog']
+    },
+    {
+        id: '5',
+        name: 'Grooming Kit - 6 Piece',
+        description: 'Professional grade brushes, nail clippers, and deshedding tools.',
+        price: '₹1,599',
+        imageUrl: 'https://placehold.co/400x400/fce7f3/9d174d?text=✂️+Grooming',
+        affiliateUrl: 'https://amazon.in/?tag=YOUR_TAG',
+        rating: 4.7,
+        tags: ['grooming', 'dog', 'cat']
+    },
+    {
+        id: '6',
+        name: 'Reflective Dog Harness',
+        description: 'No-pull design with reflective strips for safe night walks.',
+        price: '₹799',
+        imageUrl: 'https://placehold.co/400x400/fed7aa/c2410c?text=🦺+Harness',
+        affiliateUrl: 'https://amazon.in/?tag=YOUR_TAG',
+        rating: 4.4,
+        tags: ['accessory', 'dog']
+    },
 ];
 
 export default function StorePage() {
     const { user } = useAuth();
-    const { addToCart, cart, removeFromCart, totalAmount, openCart, setOpenCart } = useCart();
-    const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
+    const [recommendations, setRecommendations] = useState<AffiliateProduct[]>([]);
     const [loading, setLoading] = useState(true);
-    const [recommendations, setRecommendations] = useState<Product[]>([]);
 
-    // Fetch Pets for Smart Recommendations
     useEffect(() => {
         const fetchPets = async () => {
-            if (!user) return;
+            if (!user) {
+                setLoading(false);
+                return;
+            }
             try {
                 const petsCol = collection(db, 'users', user.uid, 'pets');
                 const snapshot = await getDocs(petsCol);
                 const userPets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Pet));
 
-                // Smart Logic
-                const breeds = userPets.map(p => p.breed.toLowerCase());
-                const recs = MOCK_PRODUCTS.filter(p =>
-                    p.tags.some(tag => breeds.some(b => b.includes(tag) || tag.includes(b)))
+                const species = userPets.map(p => p.species.toLowerCase());
+                const recs = AFFILIATE_PRODUCTS.filter(p =>
+                    p.tags.some(tag => species.includes(tag))
                 );
-                setRecommendations(recs);
+                setRecommendations(recs.length > 0 ? recs : AFFILIATE_PRODUCTS.slice(0, 3));
             } catch (e) {
                 console.error("Error fetching pets", e);
             } finally {
@@ -45,139 +110,107 @@ export default function StorePage() {
             }
         };
 
-        if (user) {
-            fetchPets();
-        } else {
-            setLoading(false);
-        }
+        fetchPets();
     }, [user]);
 
     return (
-        <div className="min-h-screen bg-white relative">
-            <div className="p-6 max-w-7xl mx-auto">
-                <header className="flex justify-between items-center mb-10">
-                    <h1 className="text-3xl font-bold text-gray-800">Pet Store</h1>
-                </header>
+        <div className="min-h-screen bg-gradient-to-b from-orange-50/50 to-white">
+            {/* Hero Section */}
+            <div className="bg-gradient-to-r from-[#FF9F1C] to-[#FFBF69] text-white">
+                <div className="max-w-6xl mx-auto px-4 py-16 text-center">
+                    <div className="flex items-center justify-center gap-3 mb-4">
+                        <ShoppingBag className="w-8 h-8" />
+                        <h1 className="text-4xl md:text-5xl font-bold">Pet Store</h1>
+                    </div>
+                    <p className="text-xl md:text-2xl font-medium opacity-90">
+                        Buy your pet something cute. 🐾
+                    </p>
+                    <p className="text-sm opacity-75 mt-2">
+                        We may earn a commission on purchases made through these links.
+                    </p>
+                </div>
+            </div>
 
-                {/* Smart Recommendations */}
+            <div className="max-w-6xl mx-auto px-4 py-10">
+                {/* Personalized Recommendations */}
                 {recommendations.length > 0 && (
                     <div className="mb-12">
-                        <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                            <span className="text-2xl">✨</span>
-                            For your pets
-                        </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="flex items-center gap-2 mb-6">
+                            <Sparkles className="w-5 h-5 text-[#FF9F1C]" />
+                            <h2 className="text-xl font-bold text-gray-800">Recommended for your pets</h2>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             {recommendations.map(product => (
-                                <ProductCard key={product.id} product={product} onAdd={() => addToCart(product)} />
+                                <ProductCard key={product.id} product={product} featured />
                             ))}
                         </div>
                     </div>
                 )}
 
                 {/* All Products */}
-                <h2 className="text-xl font-bold text-gray-800 mb-6">All Products</h2>
-                {loading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {[1, 2, 3, 4].map(i => (
-                            <div key={i} className="bg-gray-50 rounded-2xl h-80 animate-pulse" />
-                        ))}
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {products.map(product => (
-                            <ProductCard key={product.id} product={product} onAdd={() => addToCart(product)} />
-                        ))}
-                    </div>
-                )}
-            </div>
-
-            {/* Cart Sidebar */}
-            <div className={`fixed inset-y-0 right-0 w-full md:w-96 bg-white shadow-2xl transform transition-transform duration-300 z-50 ${openCart ? 'translate-x-0' : 'translate-x-full'}`}>
-                <div className="h-full flex flex-col">
-                    <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                            <ShoppingCart className="w-5 h-5" /> Shopping List
-                        </h2>
-                        <button onClick={() => setOpenCart(false)} className="p-2 hover:bg-gray-200 rounded-full transition">
-                            <X className="w-5 h-5 text-gray-600" />
-                        </button>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                        {cart.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                                <ShoppingCart className="w-12 h-12 mb-4 opacity-20" />
-                                <p>Your list is empty.</p>
-                            </div>
-                        ) : (
-                            cart.map(item => (
-                                <div key={item.id} className="flex gap-4 border-b border-gray-50 pb-4">
-                                    <div className="relative w-20 h-20 flex-shrink-0 bg-gray-50 rounded-xl overflow-hidden">
-                                        <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <h3 className="font-bold text-gray-800">{item.name}</h3>
-                                        <p className="text-sm text-gray-500 font-medium">₹{item.price} x {item.quantity}</p>
-                                    </div>
-                                    <button onClick={() => removeFromCart(item.id)} className="text-red-300 hover:text-red-500 transition">
-                                        <Trash2 className="w-5 h-5" />
-                                    </button>
-                                </div>
-                            ))
-                        )}
-                    </div>
-
-                    <div className="p-8 border-t border-gray-100 bg-gray-50">
-                        <div className="flex justify-between items-center mb-6">
-                            <span className="text-gray-500 font-medium">Total Estimate</span>
-                            <span className="text-3xl font-bold text-[#FF9F1C]">₹{totalAmount}</span>
+                <div>
+                    <h2 className="text-xl font-bold text-gray-800 mb-6">All Products</h2>
+                    {loading ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {[1, 2, 3, 4, 5, 6].map(i => (
+                                <div key={i} className="bg-white rounded-3xl h-80 animate-pulse shadow-sm" />
+                            ))}
                         </div>
-                        <button
-                            disabled
-                            className="w-full py-4 bg-gray-200 text-gray-400 rounded-2xl font-bold cursor-not-allowed flex items-center justify-center gap-2"
-                        >
-                            <Smartphone className="w-5 h-5" /> Checkout Disabled
-                        </button>
-                    </div>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {AFFILIATE_PRODUCTS.map(product => (
+                                <ProductCard key={product.id} product={product} />
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
-
-            {/* Overlay */}
-            {openCart && (
-                <div onClick={() => setOpenCart(false)} className="fixed inset-0 bg-black bg-opacity-10 z-40 backdrop-blur-sm" />
-            )}
         </div>
     );
 }
 
-function ProductCard({ product, onAdd }: { product: Product, onAdd: () => void }) {
+function ProductCard({ product, featured = false }: { product: AffiliateProduct, featured?: boolean }) {
     return (
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition group">
-            <div className="relative h-56 w-full bg-gray-50 rounded-xl mb-4 overflow-hidden">
+        <div className={`bg-white rounded-3xl overflow-hidden shadow-sm border transition-all hover:shadow-lg hover:-translate-y-1 group
+            ${featured ? 'border-[#FF9F1C]/30 ring-1 ring-[#FF9F1C]/20' : 'border-gray-100'}`}>
+            {/* Image */}
+            <div className="relative h-48 bg-gray-50 overflow-hidden">
                 <Image
                     src={product.imageUrl}
                     alt={product.name}
                     fill
-                    className="object-contain p-6 group-hover:scale-105 transition-transform"
+                    className="object-cover group-hover:scale-105 transition-transform duration-300"
                     loading="lazy"
                 />
+                {featured && (
+                    <div className="absolute top-3 left-3 bg-[#FF9F1C] text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" /> For You
+                    </div>
+                )}
             </div>
-            <div>
-                <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-bold text-gray-900 line-clamp-1 text-lg" title={product.name}>{product.name}</h3>
-                    <span className="flex items-center text-xs font-bold bg-yellow-400/20 text-yellow-700 px-2 py-1 rounded-full">
-                        ★ {product.rating}
+
+            {/* Content */}
+            <div className="p-5">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                    <h3 className="font-bold text-gray-900 text-lg line-clamp-1">{product.name}</h3>
+                    <span className="flex items-center gap-1 text-xs font-bold bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full flex-shrink-0">
+                        <Star className="w-3 h-3 fill-current" /> {product.rating}
                     </span>
                 </div>
-                <p className="text-sm text-gray-500 line-clamp-2 h-10 mb-4">{product.description}</p>
-                <div className="flex justify-between items-center">
-                    <span className="text-xl font-bold text-gray-900">₹{product.price}</span>
-                    <button
-                        onClick={onAdd}
-                        className="p-3 bg-[#FF9F1C] text-white rounded-xl hover:bg-orange-500 transition-colors shadow-sm active:scale-95 transform"
+
+                <p className="text-sm text-gray-500 line-clamp-2 mb-4 h-10">{product.description}</p>
+
+                <div className="flex items-center justify-between">
+                    <span className="text-2xl font-bold text-gray-900">{product.price}</span>
+                    <a
+                        href={product.affiliateUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-5 py-2.5 bg-[#FF9900] text-white rounded-xl font-bold hover:bg-[#e68a00] transition shadow-sm"
                     >
-                        <Plus className="w-5 h-5" />
-                    </button>
+                        Buy on Amazon
+                        <ExternalLink className="w-4 h-4" />
+                    </a>
                 </div>
             </div>
         </div>

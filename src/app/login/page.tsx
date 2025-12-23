@@ -11,7 +11,7 @@ export default function LoginPage() {
 
     useEffect(() => {
         if (user && !loading) {
-            router.push('/store');
+            router.push('/petbook');
         }
     }, [user, loading, router]);
 

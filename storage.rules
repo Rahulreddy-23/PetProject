@@ -6,27 +6,40 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    // 1. Petbook Media
+    // Helper: Is the requester the owner of the file?
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // 1. Petbook Media (Posts)
     match /petbook/{userId}/{fileName} {
+      // In a social app, media is generally readable by all authenticated users 
+      // (The Firestore rules handle whether the post itself is visible)
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isOwner(userId);
     }
 
-    // 2. Medical Records 
+    // 2. Medical Records (Strict Privacy)
     match /medical_records/{userId}/{fileName} {
-      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      allow read, write: if isOwner(userId);
     }
 
-    // 3. Petora Media [NEW]
-    // Allows users to attach images to their Questions/Answers
+    // 3. Petora Media
     match /petora/{userId}/{fileName} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isOwner(userId);
     }
 
-    // 4. General User Folders
-    match /users/{userId}/{allPaths=**} {
-      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    // 4. User Profiles (Avatars)
+    match /users/{userId}/profile/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+    }
+
+    // 5. Store Assets (If you upload product images)
+    match /products/{fileName} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.auth.token.role == "admin";
     }
 
     // Default deny

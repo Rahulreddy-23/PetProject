@@ -7,6 +7,11 @@ export interface User {
     photoURL: string | null;
     role: UserRole;
     createdAt?: string; // ISO date string
+    // Social Fields (NEW)
+    username?: string;         // Unique @username (lowercase, permanent)
+    bio?: string;              // User bio
+    followingCount: number;    // Denormalized
+    followersCount: number;    // Denormalized
     // Profile Fields
     fullName?: string;
     address?: string;
@@ -59,18 +64,24 @@ export interface Product {
     rating: number; // 0-5
 }
 
+export type PostVisibility = 'public' | 'friends' | 'private';
+
 export interface Post {
     id: string;
     userId: string;
     authorName: string; // Denormalized
     authorPhoto: string | null; // Denormalized
+    authorUsername: string; // Denormalized (NEW)
     petId?: string; // Optional linkage to a specific pet
-    mediaUrl: string;
-    mediaType: 'image' | 'video';
-    mediaWidth?: number; // For avoiding layout shifts
+    // Multi-image support (NEW)
+    mediaUrls: string[];       // Array of media URLs
+    mediaType: 'image' | 'video' | 'carousel'; // Added carousel type
+    mediaWidth?: number; // For avoiding layout shifts (first image)
     mediaHeight?: number;
     caption: string;
     likes: string[]; // Array of User IDs
+    visibility: PostVisibility; // NEW
+    tags?: string[]; // Category tags (NEW)
     createdAt: string; // ISO date string
 }
 
