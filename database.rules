@@ -44,7 +44,7 @@ service cloud.firestore {
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
       
-      // Allow author to edit content OR community to update 'upvotes'
+      // Allow author to edit content OR community to update 'upvotes' AND 'answerCount'
       allow update: if request.auth != null && (
         resource.data.userId == request.auth.uid ||
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'answerCount'])
@@ -54,11 +54,10 @@ service cloud.firestore {
     // 6. Petora Answers [NEW]
     match /answers/{answerId} {
       allow read: if request.auth != null;
-      // Note: If AI answers are generated server-side via Admin SDK, this create rule 
-      // primarily covers manual user answers.
+      // Allow manual creation by user OR by client for AI (if strictly client-sided)
       allow create: if request.auth != null && (
           request.resource.data.userId == request.auth.uid ||
-          request.resource.data.userId == "AI_ASSISTANT" // Allow client to save AI answer
+          request.resource.data.userId == "AI_ASSISTANT" 
       );
       allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
       

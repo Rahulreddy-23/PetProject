@@ -265,6 +265,8 @@ export default function MedicalUpload() {
         setStep(3); // Jump to editor
     };
 
+
+
     return (
         <div className="w-full max-w-4xl mx-auto p-4">
             {step === 1 && (
@@ -318,6 +320,16 @@ export default function MedicalUpload() {
                                 </span>
                             </div>
                         )}
+                    </div>
+
+                    <div className="flex justify-center pt-4">
+                        <button
+                            onClick={handleManualEntry}
+                            className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center gap-2 transition-colors"
+                        >
+                            <FileText className="w-4 h-4" />
+                            Or create a record manually without scanning
+                        </button>
                     </div>
                 </div>
             )}

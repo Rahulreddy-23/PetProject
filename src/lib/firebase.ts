@@ -15,14 +15,34 @@ const firebaseConfig = {
 
 // Initialize Firebase (SSR/HMR safe)
 let app: FirebaseApp;
-if (getApps().length === 0) {
-    app = initializeApp(firebaseConfig);
-} else {
-    app = getApp();
-}
+let auth: Auth;
+let db: Firestore;
+let storage: FirebaseStorage;
 
-const auth: Auth = getAuth(app);
-const db: Firestore = getFirestore(app);
-const storage: FirebaseStorage = getStorage(app);
+// Handle build-time initialization where env vars might be missing
+if (typeof window === 'undefined' && !firebaseConfig.apiKey) {
+    // We are likely in a build environment without keys.
+    // Create a dummy app/services to satisfy imports but they will fail if used.
+    // This allows static generation to proceed for pages that don't data-fetch at build time.
+    console.warn("Firebase config missing. Initializing dummy app for build/pre-rendering.");
+    // @ts-ignore
+    app = { name: '[DEFAULT]', options: {} };
+    // @ts-ignore - Mocking minimal interface to prevent immediate crash on import
+    auth = { currentUser: null };
+    // @ts-ignore
+    db = {};
+    // @ts-ignore
+    storage = {};
+} else {
+    // Normal initialization
+    if (getApps().length === 0) {
+        app = initializeApp(firebaseConfig);
+    } else {
+        app = getApp();
+    }
+    auth = getAuth(app);
+    db = getFirestore(app);
+    storage = getStorage(app);
+}
 
 export { app, auth, db, storage };

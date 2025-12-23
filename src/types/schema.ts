@@ -77,9 +77,34 @@ export interface Post {
 export interface Comment {
     id: string;
     postId: string;
-    userId: string;
-    userName: string; // Denormalized for display
     userPhoto: string | null; // Denormalized
     text: string;
+    createdAt: string; // ISO date string
+}
+
+export interface Question {
+    id: string;
+    userId: string;
+    authorName: string; // Denormalized
+    authorPhoto: string | null;
+    petId: string; // Required for context
+    title: string;
+    content: string;
+    imageUrl?: string; // Optional image attachment
+    tags: string[];
+    upvotes: string[]; // Array of User IDs
+    createdAt: string; // ISO date string
+    answerCount: number; // Optimization for listing
+}
+
+export interface Answer {
+    id: string;
+    questionId: string;
+    userId: string; // 'AI' for AI assistant
+    authorName: string;
+    authorPhoto: string | null;
+    content: string;
+    isAiGenerated: boolean;
+    upvotes: string[]; // Array of User IDs
     createdAt: string; // ISO date string
 }

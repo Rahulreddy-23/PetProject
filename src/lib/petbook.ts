@@ -56,8 +56,11 @@ export const uploadMedia = async (file: File, userId: string): Promise<string> =
 
 export const createPost = async (postData: Omit<Post, 'id' | 'createdAt' | 'likes'>): Promise<string> => {
     try {
+        // Sanitize data to remove undefined values (e.g. petId)
+        const sanitizedData = JSON.parse(JSON.stringify(postData));
+
         const docRef = await addDoc(collection(db, "posts"), {
-            ...postData,
+            ...sanitizedData,
             likes: [], // Initialize empty
             createdAt: new Date().toISOString()
         });
