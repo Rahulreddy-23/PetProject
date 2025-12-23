@@ -2,25 +2,29 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     
-    // Helper function to check auth
     function isAuthenticated() {
       return request.auth != null;
     }
 
     // 1. Petbook Media
-    // Path: petbook/{userId}/{fileName}
     match /petbook/{userId}/{fileName} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated() && request.auth.uid == userId;
     }
 
     // 2. Medical Records 
-    // FIXED: Added path for medical_records/{userId}/{fileName}
     match /medical_records/{userId}/{fileName} {
       allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
 
-    // 3. General User Folders
+    // 3. Petora Media [NEW]
+    // Allows users to attach images to their Questions/Answers
+    match /petora/{userId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // 4. General User Folders
     match /users/{userId}/{allPaths=**} {
       allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
