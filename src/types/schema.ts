@@ -77,6 +77,8 @@ export interface Post {
 export interface Comment {
     id: string;
     postId: string;
+    userId: string;
+    userName: string; // Denormalized for display
     userPhoto: string | null; // Denormalized
     text: string;
     createdAt: string; // ISO date string
